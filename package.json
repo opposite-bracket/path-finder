@@ -4,8 +4,12 @@
   "description": "",
   "main": "path-finder.js",
   "scripts": {
+    "start": "node path-finder.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^1.1.3"
+  }
 }
