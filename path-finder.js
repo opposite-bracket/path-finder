@@ -2,6 +2,7 @@
 
 var chalk = require('chalk');
 var debug = true;
+var printingSpeed = 250;
 
 var log = function(){
   if(debug){
@@ -37,13 +38,15 @@ var tiles = [
 ];
 
 var startPosition = '1|3',
-  finishPosition = '3|8|0',
+  finishPosition = '3|8|0', // x position | y position | number of positions to start
   emptyTileCharacter = chalk.grey("_"),
   wallCharacter = chalk.blue("X"),
   startCharacter = chalk.white("S"),
   finishCharacter = chalk.yellow("F"),
   guineaPigCharacter = chalk.red("P"),
-  startTime, finishTime;
+  timer = {
+    processing: {started: null, finished: null}
+  };
 
 /**
  * print board tiles.
@@ -59,13 +62,14 @@ var startPosition = '1|3',
  *
  * @param tiles
  */
-var printBoardTiles = function(tiles){
+var printBoardTiles = function(tiles, coordinates){
   var floor = chalk.grey('   1 2 3 4 5 6 7 8\n');
   // draw floor
   tiles.forEach(function(xTiles, yTileIndex){
     xTiles.forEach(function(tileValue, xTileIndex){
 
       // TODO: Turn this into a custom object
+      var currentCoordinates = coordinates.split('|').map(function(value){return parseInt(value)});
       var startCoordinates = startPosition.split('|').map(function(value){return parseInt(value)});
       var finishCoordinates = finishPosition.split('|').map(function(value){return parseInt(value)});
 
@@ -73,7 +77,11 @@ var printBoardTiles = function(tiles){
        * Precedence says the guinea pig has precedence over
        * the other characters
        */
-      if(xTileIndex == startCoordinates[0] && yTileIndex == startCoordinates[1]) {
+      // currentCoordinates
+      if(xTileIndex == currentCoordinates[0] && yTileIndex == currentCoordinates[1]) {
+        floor += " " + guineaPigCharacter;
+        return;
+      } else if(xTileIndex == startCoordinates[0] && yTileIndex == startCoordinates[1]) {
         floor += " " + startCharacter;
         return;
       } else if(xTileIndex == finishCoordinates[0] && yTileIndex == finishCoordinates[1]) {
@@ -131,24 +139,8 @@ var clearScreen = function(){
   process.stdout.write('\u001B[2J\u001B[0;0f');
 };
 
-/**
- * Save the time in which the program started running
- */
-var startTimer = function(){
-  startTime = new Date();
-};
+var getSuroundingTiles = function(currentCoordinates){
 
-/**
- * Save the time in which the program finished running
- */
-var stopTimer = function(){
-  finishTime = new Date();
-};
-
-var getSuroundingTiles = function(currentPosition){
-  // log('processing', currentPosition);
-
-  var currentCoordinates = currentPosition.split('|').map(function(value){return parseInt(value)});
   return [
     (currentCoordinates[0] + 1) + '|' + currentCoordinates[1],
     (currentCoordinates[0] - 1) + '|' + currentCoordinates[1],
@@ -171,10 +163,14 @@ var getSuroundingTiles = function(currentPosition){
 var getPath = function(){
   // Create a list of the four adjacent cells
   var trace = [finishPosition];
-  for (var cursor = 0; cursor <= 20; cursor++) {
+  for (var cursor = 0; cursor <= 19; cursor++) {
 
     // log('--------------------------------');
-    var surroundingTiles = getSuroundingTiles(trace[cursor]);
+    // log('processing', trace[cursor]);
+    var currentCoordinates = trace[cursor].split('|').map(function(value){return parseInt(value)});
+    var surroundingTiles = getSuroundingTiles(currentCoordinates).sort();
+
+    // TODO: break the loop of path reached the starting point
 
     /**
      * 2. Check all cells in each list for the following two conditions
@@ -187,6 +183,7 @@ var getPath = function(){
     surroundingTiles.forEach(function(tile, index){
       var tileCoordinates = tile.split('|').map(function(value){return parseInt(value)});
       var tileType = tiles[tileCoordinates[1]][tileCoordinates[0]];
+
       var isChecked = trace.findIndex(function(position){
         var regex = new RegExp('^' + tileCoordinates[0] + '\\|' + tileCoordinates[1] + '\\|[0-9]+' + '$');
         return Boolean(position.match(regex));
@@ -197,6 +194,7 @@ var getPath = function(){
       // log("tileType: ", tileType == 0 ? 'empty tile' : 'wall');
       // log("isChecked ", isChecked);
       // log("adding to stack? ", Boolean(tileType == 0 && !isChecked));
+      // log("length ", tileCoordinates.length);
 
       // remove it from the list if
       // - If the cell is a wall (1), remove it from the list
@@ -204,7 +202,7 @@ var getPath = function(){
       //   coordinate and an equal or higher counter, remove it from
       //   the list
       if( tileType == 0 && !isChecked ){
-        surroundingTiles[index] += '|' + (cursor + 1);
+        surroundingTiles[index] += '|' + (currentCoordinates[2] + 1);
         trace.push(surroundingTiles[index]);
       }
 
@@ -217,19 +215,96 @@ var getPath = function(){
   return trace;
 };
 
-var run = function() {
-  startTimer();
+/**
+ * Retrieves the coordinates with the smallest number of positions
+ * to take to get from the finish line to the start line.
+ *
+ * TODO: This will need to be updated the moment that the getPath
+ * function knows how to dynalically end the loop when the start line
+ * has been reached.
+ *
+ * @param trace
+ * @returns {*}
+ */
+var getSmallestNumberOfPosition = function(trace){
+  return trace[trace.length -1].split('|')[2];
+};
+
+var groupByNumberOfSteps = function(trace){
+  var grouped = {};
+
+  // group
+  trace.forEach(function(tile, index){
+    var tileCoordinates = tile.split('|').map(function(value){return parseInt(value)});
+    if( !grouped.hasOwnProperty(tileCoordinates[2]) ) {
+      grouped[tileCoordinates[2]] = [];
+    }
+    grouped[tileCoordinates[2]].push(tile);
+  });
+
+  return grouped;
+};
+
+/**
+ * Retrieves the next step to draw on the board.
+ *
+ * @param trace
+ * @param guineaPigPosition
+ */
+var getNextStep = function(trace, guineaPigPosition){
+
+  var groupedTrace = groupByNumberOfSteps(trace);
+
+  // sort to grab the one with the smallest value
+  groupedTrace[guineaPigPosition].sort()
+  return groupedTrace[guineaPigPosition][0];
+};
+
+/**
+ * Draw the solution on the console.
+ *
+ * @param trace
+ * @param tiles
+ * @param numberOfPositions
+ */
+var drawPath = function(trace, tiles, numberOfPositions){
+  var coordinates = getNextStep(trace, numberOfPositions);
+  // log(coordinates);
+
   clearScreen();
   printLegend();
-  printBoardTiles(tiles);
-  getPath(tiles);
-  stopTimer();
+  printBoardTiles(tiles, coordinates);
+
+  process.stdout.write('\rPosition: ' + coordinates + '\n');
+
+  setTimeout(function(){
+    numberOfPositions--;
+
+    // draw while there are steps to draw.
+    if(numberOfPositions >= 0) {
+      drawPath(trace, tiles, numberOfPositions);
+    }
+  }, printingSpeed);
+};
+
+var run = function() {
+  // set start time for path finder calculation
+  timer.processing.started = new Date();
+  var trace = getPath(tiles);
+  // set finish time for path finder calculation
+  timer.processing.finished = new Date();
+
+  // log(trace);
+
+  // Get smallest number of positions
+  // and start printing path recursively
+  drawPath(trace, tiles, getSmallestNumberOfPosition(trace));
 };
 
 /**
  * Run program if called as script
  */
 if (require.main === module) {
-  // console.log(process.argv[2] || false);
+  // TODO: handle an argument to enable debugging or not
   run();
 }
