@@ -5,7 +5,7 @@
   "main": "path-finder.js",
   "scripts": {
     "start": "node path-finder.js",
-    "test": "./node_modules/.bin/lab -cL"
+    "test": "./node_modules/.bin/lab -c"
   },
   "author": "",
   "license": "ISC",

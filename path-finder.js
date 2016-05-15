@@ -1,6 +1,13 @@
 'use strict';
 
 var chalk = require('chalk');
+var debug = true;
+
+var log = function(){
+  if(debug){
+    console.log.apply(null, arguments);
+  }
+};
 
 //   1 2 3 4 5 6 7 8
 // X X X X X X X X X X
@@ -29,9 +36,8 @@ var tiles = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
 
-var startPosition = '1|3', // {x: 1, y: 3},
-  currentPosition = '1|3',
-  finishPosition = '3|8', // {x: 3, y: 8},
+var startPosition = '1|3',
+  finishPosition = '3|8|0',
   emptyTileCharacter = chalk.grey("_"),
   wallCharacter = chalk.blue("X"),
   startCharacter = chalk.white("S"),
@@ -54,12 +60,12 @@ var startPosition = '1|3', // {x: 1, y: 3},
  * @param tiles
  */
 var printBoardTiles = function(tiles){
-  var floor = '';
+  var floor = chalk.grey('   1 2 3 4 5 6 7 8\n');
+  // draw floor
   tiles.forEach(function(xTiles, yTileIndex){
     xTiles.forEach(function(tileValue, xTileIndex){
 
       // TODO: Turn this into a custom object
-      var currentCoordinates = currentPosition.split('|').map(function(value){return parseInt(value)});
       var startCoordinates = startPosition.split('|').map(function(value){return parseInt(value)});
       var finishCoordinates = finishPosition.split('|').map(function(value){return parseInt(value)});
 
@@ -67,13 +73,10 @@ var printBoardTiles = function(tiles){
        * Precedence says the guinea pig has precedence over
        * the other characters
        */
-      if(yTileIndex == currentCoordinates[1] && xTileIndex == currentCoordinates[0]) {
-        floor += " " + guineaPigCharacter;
-        return;
-      } else if(yTileIndex == startCoordinates[1] && xTileIndex == startCoordinates[0]) {
+      if(xTileIndex == startCoordinates[0] && yTileIndex == startCoordinates[1]) {
         floor += " " + startCharacter;
         return;
-      } else if(yTileIndex == finishCoordinates[1] && xTileIndex == finishCoordinates[0]) {
+      } else if(xTileIndex == finishCoordinates[0] && yTileIndex == finishCoordinates[1]) {
         floor += " " + finishCharacter;
         return;
       }
@@ -99,7 +102,7 @@ var printBoardTiles = function(tiles){
           throw new Error('Couldn\'t understand tile in x:"' + xTile + '"/y:' + yTile);
       };
     });
-    floor += '\n';
+    floor += chalk.grey(((yTileIndex != 0 && yTileIndex != 9) ? ' ' + yTileIndex : '') + '\n');
   });
   process.stdout.write(floor + '\n');
 };
@@ -143,6 +146,7 @@ var stopTimer = function(){
 };
 
 var getSuroundingTiles = function(currentPosition){
+  // log('processing', currentPosition);
 
   var currentCoordinates = currentPosition.split('|').map(function(value){return parseInt(value)});
   return [
@@ -165,13 +169,13 @@ var getSuroundingTiles = function(currentPosition){
  * 3. Add all remaining cells in the list to the end of the main list
  */
 var getPath = function(){
-  // loop until the the path has been found
-  var counter = 0;
   // Create a list of the four adjacent cells
-  var trace = [];
-  // for (var index = 0; index == 0;) {
-    counter++;
-    var surroundingTiles = getSuroundingTiles(currentPosition);
+  var trace = [finishPosition];
+  for (var cursor = 0; cursor <= 20; cursor++) {
+
+    // log('--------------------------------');
+    var surroundingTiles = getSuroundingTiles(trace[cursor]);
+
     /**
      * 2. Check all cells in each list for the following two conditions
      *     a. If the cell is a wall, remove it from the list
@@ -179,18 +183,37 @@ var getPath = function(){
      *        coordinate and an equal or higher counter, remove it from
      *        the list
      */
-    console.log("Surrounding Tiles", surroundingTiles);
-    surroundingTiles.forEach(function(tile){
+    // log("Surrounding Tiles", surroundingTiles);
+    surroundingTiles.forEach(function(tile, index){
       var tileCoordinates = tile.split('|').map(function(value){return parseInt(value)});
-      var tileType = tiles[tileCoordinates[0]][tileCoordinates[1]];
-      console.log("\ntile: ", tile);
-      console.log("tileType: ", tileType);
-      // If the cell is a wall, remove it from the list
-      // if(  ){
-      //
-      // }
+      var tileType = tiles[tileCoordinates[1]][tileCoordinates[0]];
+      var isChecked = trace.findIndex(function(position){
+        var regex = new RegExp('^' + tileCoordinates[0] + '\\|' + tileCoordinates[1] + '\\|[0-9]+' + '$');
+        return Boolean(position.match(regex));
+      }) >= 0;
+
+      // log("\nTile Index in surrounding tiles", surroundingTiles.indexOf(tile));
+      // log("tile: ", tile);
+      // log("tileType: ", tileType == 0 ? 'empty tile' : 'wall');
+      // log("isChecked ", isChecked);
+      // log("adding to stack? ", Boolean(tileType == 0 && !isChecked));
+
+      // remove it from the list if
+      // - If the cell is a wall (1), remove it from the list
+      // - If there is an element in the main list with the same
+      //   coordinate and an equal or higher counter, remove it from
+      //   the list
+      if( tileType == 0 && !isChecked ){
+        surroundingTiles[index] += '|' + (cursor + 1);
+        trace.push(surroundingTiles[index]);
+      }
+
     });
-  // }
+
+    // log("\ntrace", trace);
+    // log("cursor", cursor);
+  }
+  // log("\ntrace", trace);
   return trace;
 };
 
@@ -207,5 +230,6 @@ var run = function() {
  * Run program if called as script
  */
 if (require.main === module) {
+  // console.log(process.argv[2] || false);
   run();
 }
