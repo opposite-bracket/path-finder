@@ -170,7 +170,9 @@ var getSuroundingTiles = function(currentCoordinates){
 var getPath = function(){
   // Create a list of the four adjacent cells
   var trace = [finishPosition];
-  for (var cursor = 0; cursor <= 19; cursor++) {
+  // go through the entire board until the
+  // the starting point has been found
+  for (var cursor = 0; cursor <= 100; cursor++) {
 
     // log('--------------------------------');
     // log('processing', trace[cursor]);
@@ -214,6 +216,14 @@ var getPath = function(){
       }
 
     });
+
+    // break the for loop if the starting point has been added
+    var lastAdded = trace[trace.length - 1];
+    var targetCoordinates = startPosition.split('|').map(function(value){return parseInt(value)});
+    var regex = new RegExp('^' + targetCoordinates[0] + '\\|' + targetCoordinates[1] + '\\|[0-9]+' + '$');
+    if( Boolean(lastAdded.match(regex)) ) {
+      break;
+    }
 
   }
   return trace;
@@ -306,8 +316,6 @@ var run = function() {
   var trace = getPath(tiles);
   // set finish time for path finder calculation
   timer.processing.finished = new Date();
-
-  // log(trace);
 
   // Get smallest number of positions
   // and start printing path recursively
