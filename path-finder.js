@@ -285,7 +285,8 @@ var drawPath = function(trace, tiles, numberOfPositions, processingTimer){
 
   var meta = '\rPosition: ' + coordinates + '\n'
     + '\rFound shortest path in ' + chalk.green(getDuration(processingTimer)) + ' ms\n'
-    + '\rPrinting path in ' + printingSpeed + ' ms\n';
+    + '\rPrinting path in ' + printingSpeed + ' ms\n'
+    + '\rRunning on ' + process.platform + '\n';
 
   process.stdout.write(meta);
 
