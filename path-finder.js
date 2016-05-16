@@ -139,6 +139,13 @@ var clearScreen = function(){
   process.stdout.write('\u001B[2J\u001B[0;0f');
 };
 
+/**
+ * return the surrounding tiles by giving it the coordinates
+ * of a targeted tile.
+ *
+ * @param currentCoordinates
+ * @returns {*[]}
+ */
 var getSuroundingTiles = function(currentCoordinates){
 
   return [
@@ -208,10 +215,7 @@ var getPath = function(){
 
     });
 
-    // log("\ntrace", trace);
-    // log("cursor", cursor);
   }
-  // log("\ntrace", trace);
   return trace;
 };
 
@@ -260,6 +264,10 @@ var getNextStep = function(trace, guineaPigPosition){
   return groupedTrace[guineaPigPosition][0];
 };
 
+var getDuration = function(processingTimer) {
+  return processingTimer.finished.getTime() - processingTimer.started.getTime();
+};
+
 /**
  * Draw the solution on the console.
  *
@@ -267,7 +275,7 @@ var getNextStep = function(trace, guineaPigPosition){
  * @param tiles
  * @param numberOfPositions
  */
-var drawPath = function(trace, tiles, numberOfPositions){
+var drawPath = function(trace, tiles, numberOfPositions, processingTimer){
   var coordinates = getNextStep(trace, numberOfPositions);
   // log(coordinates);
 
@@ -275,14 +283,18 @@ var drawPath = function(trace, tiles, numberOfPositions){
   printLegend();
   printBoardTiles(tiles, coordinates);
 
-  process.stdout.write('\rPosition: ' + coordinates + '\n');
+  var meta = '\rPosition: ' + coordinates + '\n'
+    + '\rFound shortest path in ' + chalk.green(getDuration(processingTimer)) + ' ms\n'
+    + '\rPrinting path in ' + printingSpeed + ' ms\n';
+
+  process.stdout.write(meta);
 
   setTimeout(function(){
     numberOfPositions--;
 
     // draw while there are steps to draw.
     if(numberOfPositions >= 0) {
-      drawPath(trace, tiles, numberOfPositions);
+      drawPath(trace, tiles, numberOfPositions, processingTimer );
     }
   }, printingSpeed);
 };
@@ -298,7 +310,7 @@ var run = function() {
 
   // Get smallest number of positions
   // and start printing path recursively
-  drawPath(trace, tiles, getSmallestNumberOfPosition(trace));
+  drawPath(trace, tiles, getSmallestNumberOfPosition(trace), timer.processing);
 };
 
 /**
