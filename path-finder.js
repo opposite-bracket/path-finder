@@ -3,6 +3,7 @@
 var chalk = require('chalk');
 var debug = true;
 var printingSpeed = 250;
+var enableCornerSkipping = false;
 
 var log = function(){
   if(debug){
@@ -38,7 +39,7 @@ var tiles = [
 ];
 
 var startPosition = '1|3',
-  finishPosition = '3|8|0', // x position | y position | number of positions to start
+  finishPosition = '8|1|0', // x position | y position | number of positions to start
   emptyTileCharacter = chalk.grey("_"),
   wallCharacter = chalk.blue("X"),
   startCharacter = chalk.white("S"),
@@ -198,13 +199,6 @@ var getPath = function(){
         return Boolean(position.match(regex));
       }) >= 0;
 
-      // log("\nTile Index in surrounding tiles", surroundingTiles.indexOf(tile));
-      // log("tile: ", tile);
-      // log("tileType: ", tileType == 0 ? 'empty tile' : 'wall');
-      // log("isChecked ", isChecked);
-      // log("adding to stack? ", Boolean(tileType == 0 && !isChecked));
-      // log("length ", tileCoordinates.length);
-
       // remove it from the list if
       // - If the cell is a wall (1), remove it from the list
       // - If there is an element in the main list with the same
@@ -240,7 +234,7 @@ var getPath = function(){
  * @param trace
  * @returns {*}
  */
-var getSmallestNumberOfPosition = function(trace){
+var getFirstPosition = function(trace){
   return trace[trace.length -1].split('|')[2];
 };
 
@@ -248,7 +242,7 @@ var groupByNumberOfSteps = function(trace){
   var grouped = {};
 
   // group
-  trace.forEach(function(tile, index){
+  trace.forEach(function(tile){
     var tileCoordinates = tile.split('|').map(function(value){return parseInt(value)});
     if( !grouped.hasOwnProperty(tileCoordinates[2]) ) {
       grouped[tileCoordinates[2]] = [];
@@ -262,18 +256,48 @@ var groupByNumberOfSteps = function(trace){
 /**
  * Retrieves the next step to draw on the board.
  *
+ * TODO: Investigate because the sorting is messing up
+ * the printing of the path. Instead, try being selective with
+ * which tile to move next based on the cercany of the current tile
+ *
  * @param trace
  * @param guineaPigPosition
  */
-var getNextStep = function(trace, guineaPigPosition){
+var getNextStep = function(trace, currentCoordinates){
 
-  var groupedTrace = groupByNumberOfSteps(trace);
+  var currentCoordinates = currentCoordinates.split('|');
 
-  // sort to grab the one with the smallest value
-  groupedTrace[guineaPigPosition].sort()
-  return groupedTrace[guineaPigPosition][0];
+  var regex;
+  if(enableCornerSkipping) {
+    var y = [
+      parseInt(currentCoordinates[0]) - 1,
+      parseInt(currentCoordinates[0]),
+      parseInt(currentCoordinates[0]) + 1
+    ];
+    var x = [
+      parseInt(currentCoordinates[1]) - 1,
+      parseInt(currentCoordinates[1]),
+      parseInt(currentCoordinates[1]) + 1
+    ];
+    regex = new RegExp('[' + y.join(',') + ']\\|[' + x.join(',') + ']\\|[0-9].');
+  } else{
+    var regexes = [
+      '(' + (parseInt(currentCoordinates[0]) - 1) + '\\|' + currentCoordinates[1] + '\\|[0-9])',
+      '(' + (parseInt(currentCoordinates[0]) + 1) + '\\|' + currentCoordinates[1] + '\\|[0-9])',
+      '(' + currentCoordinates[0] + '\\|' + (parseInt(currentCoordinates[1]) - 1) + '\\|[0-9])',
+      '(' + currentCoordinates[0] + '\\|' + (parseInt(currentCoordinates[1]) + 1) + '\\|[0-9])'
+    ];
+    regex = new RegExp(regexes.join('|'));
+  }
+
+  return trace.join('*').match(regex)[0];
 };
 
+/**
+ * Calucalte duration the program found the shortest route
+ * @param processingTimer
+ * @returns {number}
+ */
 var getDuration = function(processingTimer) {
   return processingTimer.finished.getTime() - processingTimer.started.getTime();
 };
@@ -285,15 +309,17 @@ var getDuration = function(processingTimer) {
  * @param tiles
  * @param numberOfPositions
  */
-var drawPath = function(trace, tiles, numberOfPositions, processingTimer){
-  var coordinates = getNextStep(trace, numberOfPositions);
-  // log(coordinates);
+var drawPath = function(trace, tiles, currentPosition, processingTimer){
+
+  var nextPosition = getNextStep(trace, currentPosition);
+  // log('nextPosition', nextPosition);
+  // log('currentPosition', currentPosition);
 
   clearScreen();
   printLegend();
-  printBoardTiles(tiles, coordinates);
+  printBoardTiles(tiles, nextPosition);
 
-  var meta = '\rPosition: ' + coordinates + '\n'
+  var meta = '\rPosition: ' + nextPosition + '\n'
     + '\rFound shortest path in ' + chalk.green(getDuration(processingTimer)) + ' ms\n'
     + '\rPrinting path in ' + printingSpeed + ' ms\n'
     + '\rRunning on ' + process.platform + '\n';
@@ -301,11 +327,10 @@ var drawPath = function(trace, tiles, numberOfPositions, processingTimer){
   process.stdout.write(meta);
 
   setTimeout(function(){
-    numberOfPositions--;
 
     // draw while there are steps to draw.
-    if(numberOfPositions >= 0) {
-      drawPath(trace, tiles, numberOfPositions, processingTimer );
+    if(nextPosition != finishPosition) {
+      drawPath(trace, tiles, nextPosition, processingTimer );
     }
   }, printingSpeed);
 };
@@ -314,12 +339,13 @@ var run = function() {
   // set start time for path finder calculation
   timer.processing.started = new Date();
   var trace = getPath(tiles);
+  // TODO: Select a path before printing
   // set finish time for path finder calculation
   timer.processing.finished = new Date();
 
   // Get smallest number of positions
   // and start printing path recursively
-  drawPath(trace, tiles, getSmallestNumberOfPosition(trace), timer.processing);
+  drawPath(trace, tiles, startPosition, timer.processing);
 };
 
 /**
