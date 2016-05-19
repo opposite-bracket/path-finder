@@ -15,3 +15,4 @@
 ## Tested on
 
 * OSX (Finds shortest path in 8 ms)
+* centos 6
