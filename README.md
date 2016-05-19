@@ -4,6 +4,10 @@
 
 `npm install && npm start`
 
+## Dependencies
+
+* node v4.3.1
+
 ## Resources
 
 * [Wikipedia](https://en.wikipedia.org/wiki/Pathfinding)
