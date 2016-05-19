@@ -1,5 +1,7 @@
 # Path Finder
 
+This program finds the shortest path from a starting line to the finish line using the back trace algorithm.
+
 ## How to run
 
 `npm install && npm start`
