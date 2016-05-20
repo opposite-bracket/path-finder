@@ -4,6 +4,7 @@ var chalk = require('chalk');
 var debug = true;
 var printingSpeed = 250;
 var enableCornerSkipping = false;
+var walked = '*';
 
 var log = function(){
   if(debug){
@@ -74,6 +75,9 @@ var printBoardTiles = function(tiles, coordinates){
       var startCoordinates = startPosition.split('|').map(function(value){return parseInt(value)});
       var finishCoordinates = finishPosition.split('|').map(function(value){return parseInt(value)});
 
+      var regex = new RegExp('\\*' + xTileIndex + '\\|' + yTileIndex + '\\|[0-9]+' + '\\*');
+      var isWalked = Boolean(walked.match(regex));
+
       /**
        * Precedence says the guinea pig has precedence over
        * the other characters
@@ -93,7 +97,8 @@ var printBoardTiles = function(tiles, coordinates){
       switch (tileValue) {
         // empty tile Character
         case 0:
-          floor += " " + emptyTileCharacter;
+          // floor += " " + emptyTileCharacter;
+          floor += " " + (isWalked?chalk.red('_'):emptyTileCharacter);
           break;
         // wall Character
         case 1:
@@ -312,8 +317,6 @@ var getDuration = function(processingTimer) {
 var drawPath = function(trace, tiles, currentPosition, processingTimer){
 
   var nextPosition = getNextStep(trace, currentPosition);
-  // log('nextPosition', nextPosition);
-  // log('currentPosition', currentPosition);
 
   clearScreen();
   printLegend();
@@ -330,6 +333,7 @@ var drawPath = function(trace, tiles, currentPosition, processingTimer){
 
     // draw while there are steps to draw.
     if(nextPosition != finishPosition) {
+      walked += nextPosition + '*';
       drawPath(trace, tiles, nextPosition, processingTimer );
     }
   }, printingSpeed);
